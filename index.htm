@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SuperStore POS - Bootstrap</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <style>
+        body, html {
+            height: 100%;
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8f9fa;
+        }
+        
+        .pos-container {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .scrollable-area {
+            flex-grow: 1;
+            overflow-y: auto;
+        }
+
+        /* ซ่อน Scrollbar แต่ยังเลื่อนได้ */
+        .scrollable-area::-webkit-scrollbar {
+            width: 6px;
+        }
+        .scrollable-area::-webkit-scrollbar-thumb {
+            background-color: #dee2e6;
+            border-radius: 4px;
+        }
+
+        .numpad-btn {
+            height: 60px;
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .action-btn {
+            height: 60px;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+
+        .selected-row {
+            background-color: #cfe2ff !important;
+            border-left: 4px solid #0d6efd;
+        }
+
+        .total-display {
+            font-size: 3.5rem;
+            font-weight: bold;
+            color: #20c997;
+            text-align: right;
+            line-height: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .right-panel {
+            width: 380px;
+            min-width: 380px;
+            background-color: #1e293b;
+            color: white;
+            display: flex;
+            flex-direction: column;
+        }
+    </style>
+</head>
+<body>
+
+<div class="pos-container">
+    <!-- Top Bar -->
+    <nav class="navbar navbar-dark bg-dark py-1 shadow-sm z-1">
+        <div class="container-fluid px-3 d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center text-white">
+                <i class="bi bi-bag-check fs-5 text-info me-2"></i>
+                <span class="fw-bold fs-5 text-info">SUPER POS</span>
+                <span class="text-secondary ms-2 small">v2.4.1</span>
+                <span class="mx-3 text-secondary d-none d-md-inline">|</span>
+                <span class="d-none d-md-inline small">แคชเชียร์: 0045 สมชาย</span>
+                <span class="mx-3 text-secondary d-none d-md-inline">|</span>
+                <span class="d-none d-md-inline small">จุดขาย: POS-01</span>
+            </div>
+            <div class="d-flex align-items-center text-white small">
+                <span class="text-success me-3"><i class="bi bi-wifi"></i> ONLINE</span>
+                <span id="clockDisplay"></span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="d-flex flex-grow-1 overflow-hidden">
+        
+        <!-- LEFT PANEL: Product List -->
+        <div class="flex-grow-1 d-flex flex-column bg-white border-end">
+            
+            <!-- Table Header -->
+            <div class="bg-light border-bottom p-0">
+                <table class="table table-borderless table-sm mb-0 text-secondary fw-bold">
+                    <thead>
+                        <tr>
+                            <th class="text-center" style="width: 50px;">#</th>
+                            <th>รายการสินค้า</th>
+                            <th class="text-center" style="width: 100px;">ราคา</th>
+                            <th class="text-center" style="width: 100px;">จำนวน</th>
+                            <th class="text-end pe-4" style="width: 120px;">รวม</th>
+                        </tr>
+                    </thead>
+                </table>
+            </div>
+
+            <!-- Table Body (Scrollable) -->
+            <div class="scrollable-area" id="cartArea">
+                <div id="emptyCartMsg" class="h-100 d-flex flex-column align-items-center justify-content-center text-muted opacity-50">
+                    <i class="bi bi-upc-scan" style="font-size: 4rem;"></i>
+                    <p class="mt-3 fs-5">รอสแกนสินค้า...</p>
+                </div>
+                
+                <table class="table table-hover mb-0" id="cartTable" style="display: none;">
+                    <tbody id="cartTableBody">
+                        <!-- รายการสินค้าจะถูกสร้างที่นี่โดย JS -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Bottom Info Bar -->
+            <div class="bg-primary bg-opacity-10 p-2 px-3 border-top d-flex justify-content-between align-items-center small">
+                <div class="text-primary fw-bold">
+                    <i class="bi bi-person-fill me-1"></i>
+                    <span id="memberDisplay">ลูกค้าทั่วไป (ไม่ได้ระบุสมาชิก)</span>
+                </div>
+                <div class="text-muted">
+                    รายการล่าสุด: <span id="lastItemDisplay">-</span>
+                </div>
+            </div>
+
+            <!-- Input Area -->
+            <div class="p-3 bg-light border-top">
+                <form id="barcodeForm" class="d-flex gap-2">
+                    <div class="position-relative flex-grow-1">
+                        <i class="bi bi-upc-scan position-absolute top-50 translate-middle-y text-muted ms-3"></i>
+                        <input type="text" id="barcodeInput" class="form-control form-control-lg ps-5 fs-5 font-monospace" placeholder="สแกนบาร์โค้ด หรือ ใส่รหัสสินค้า..." autocomplete="off">
+                    </div>
+                    <button type="submit" class="btn btn-primary px-4 fw-bold shadow-sm">ENTER</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- RIGHT PANEL: Totals & Keypad -->
+        <div class="right-panel shadow-lg z-2">
+            
+            <!-- Total Display -->
+            <div class="p-4 border-bottom border-secondary" style="background-color: #0f172a;">
+                <div class="text-end text-secondary small mb-1">ยอดรวมสุทธิ (บาท)</div>
+                <div class="total-display" id="grandTotalDisplay">0.00</div>
+                <div class="d-flex justify-content-between mt-3 text-secondary small">
+                    <span id="itemCountDisplay">จำนวนชิ้น: 0</span>
+                    <span>VAT 7% (ในตัว)</span>
+                </div>
+            </div>
+
+            <!-- Action Grid -->
+            <div class="p-3 flex-grow-1 d-flex flex-column gap-2">
+                <!-- Row 1: Qty Control -->
+                <div class="row g-2">
+                    <div class="col-3">
+                        <button onclick="adjustQty(-1)" class="btn btn-secondary w-100 action-btn d-flex align-items-center justify-content-center"><i class="bi bi-dash-lg"></i></button>
+                    </div>
+                    <div class="col-6">
+                        <div id="qtyDisplay" class="bg-dark border border-secondary rounded w-100 h-100 d-flex align-items-center justify-content-center fs-4 font-monospace fw-bold text-white">-</div>
+                    </div>
+                    <div class="col-3">
+                        <button onclick="adjustQty(1)" class="btn btn-secondary w-100 action-btn d-flex align-items-center justify-content-center"><i class="bi bi-plus-lg"></i></button>
+                    </div>
+                </div>
+
+                <!-- Row 2: Member & Void -->
+                <div class="row g-2">
+                    <div class="col-6">
+                        <button onclick="toggleMember()" class="btn btn-outline-info w-100 action-btn">สมาชิก (F8)</button>
+                    </div>
+                    <div class="col-6">
+                        <button onclick="removeSelectedItem()" class="btn btn-outline-danger w-100 action-btn">ลบรายการ (Del)</button>
+                    </div>
+                </div>
+
+                <!-- Numpad -->
+                <div class="row g-2 mt-1">
+                    <div class="col-3"><button onclick="appendNum('7')" class="btn btn-secondary w-100 numpad-btn">7</button></div>
+                    <div class="col-3"><button onclick="appendNum('8')" class="btn btn-secondary w-100 numpad-btn">8</button></div>
+                    <div class="col-3"><button onclick="appendNum('9')" class="btn btn-secondary w-100 numpad-btn">9</button></div>
+                    <div class="col-3"><button onclick="clearInput()" class="btn btn-warning w-100 numpad-btn text-white">C</button></div>
+                    
+                    <div class="col-3"><button onclick="appendNum('4')" class="btn btn-secondary w-100 numpad-btn">4</button></div>
+                    <div class="col-3"><button onclick="appendNum('5')" class="btn btn-secondary w-100 numpad-btn">5</button></div>
+                    <div class="col-3"><button onclick="appendNum('6')" class="btn btn-secondary w-100 numpad-btn">6</button></div>
+                    <div class="col-3"><button onclick="clearCart()" class="btn btn-danger w-100 numpad-btn"><i class="bi bi-arrow-counterclockwise fs-4"></i></button></div>
+                    
+                    <div class="col-3"><button onclick="appendNum('1')" class="btn btn-secondary w-100 numpad-btn">1</button></div>
+                    <div class="col-3"><button onclick="appendNum('2')" class="btn btn-secondary w-100 numpad-btn">2</button></div>
+                    <div class="col-3"><button onclick="appendNum('3')" class="btn btn-secondary w-100 numpad-btn">3</button></div>
+                    <div class="col-3"><button onclick="appendNum('0')" class="btn btn-secondary w-100 numpad-btn">0</button></div>
+                </div>
+
+                <!-- Hotkeys -->
+                <div class="row g-2 mt-auto">
+                    <div class="col-3">
+                        <button onclick="addToCart('885001')" class="btn btn-info w-100 text-white" style="font-size: 0.8rem; height: 50px; line-height: 1.2;">น้ำดื่ม<br>(PLU)</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Payment Button -->
+            <div class="p-3 border-top border-secondary" style="background-color: #0f172a;">
+                <button onclick="openPaymentModal()" class="btn btn-success w-100 fw-bold shadow" style="height: 70px; font-size: 1.5rem;">
+                    <i class="bi bi-cash-coin me-2"></i> ชำระเงิน (Space)
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Payment Modal (Bootstrap Modal) -->
+<div class="modal fade" id="paymentModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content overflow-hidden border-0 shadow-lg">
+            
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title fw-bold"><i class="bi bi-wallet2 me-2"></i> รับชำระเงิน</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" onclick="focusInput()"></button>
+            </div>
+            
+            <div class="modal-body p-0 d-flex" style="min-height: 400px;">
+                <!-- Summary Column -->
+                <div class="bg-light p-4 border-end" style="width: 35%;">
+                    <div class="text-secondary small mb-1">ยอดต้องชำระ</div>
+                    <div class="fs-1 fw-bold text-success mb-4" id="modalTotalDisplay">0.00</div>
+                    
+                    <div class="text-secondary small mb-1">รับเงินมา</div>
+                    <div class="fs-2 fw-bold text-dark border-bottom border-primary border-2 pb-2 mb-4" id="modalReceivedDisplay">0.00</div>
+                    
+                    <div class="text-secondary small mb-1">เงินทอน</div>
+                    <div class="fs-1 fw-bold text-muted" id="modalChangeDisplay">0.00</div>
+                </div>
+
+                <!-- Input Column -->
+                <div class="p-4 flex-grow-1">
+                    <div class="row g-3 mb-4">
+                        <div class="col-6"><button class="btn btn-outline-success border-2 fw-bold w-100 py-3 active"><i class="bi bi-cash me-2"></i>เงินสด</button></div>
+                        <div class="col-6"><button class="btn btn-outline-secondary w-100 py-3"><i class="bi bi-qr-code me-2"></i>QR Code</button></div>
+                        <div class="col-6"><button class="btn btn-outline-secondary w-100 py-3"><i class="bi bi-credit-card me-2"></i>บัตรเครดิต</button></div>
+                        <div class="col-6"><button class="btn btn-outline-secondary w-100 py-3"><i class="bi bi-phone me-2"></i>ทรูวอลเล็ท</button></div>
+                    </div>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-3"><button onclick="setCash('1000')" class="btn btn-light border fw-bold w-100 py-2">1000</button></div>
+                        <div class="col-3"><button onclick="setCash('500')" class="btn btn-light border fw-bold w-100 py-2">500</button></div>
+                        <div class="col-3"><button onclick="setCash('100')" class="btn btn-light border fw-bold w-100 py-2">100</button></div>
+                        <div class="col-3"><button onclick="setCash('20')" class="btn btn-light border fw-bold w-100 py-2">20</button></div>
+                    </div>
+
+                    <input type="number" id="cashInput" class="form-control form-control-lg text-end fs-3 font-monospace mb-4" placeholder="กรอกจำนวนเงิน...">
+
+                    <button id="confirmPaymentBtn" onclick="confirmPayment()" class="btn btn-secondary w-100 py-3 fs-4 fw-bold shadow" disabled>
+                        ยืนยันการชำระเงิน
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bootstrap 5 JS Bundle (includes Popper) -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+    // --- State Variables ---
+    let cart = [];
+    let selectedRowIndex = null;
+    let memberId = '';
+    let grandTotal = 0;
+    let paymentModalInstance = null;
+
+    // --- Mock Database ---
+    const productDB = {
+        '885001': { name: 'น้ำทิพย์ 550มล.', price: 7.00 },
+        '885002': { name: 'เลย์ มันฝรั่งแท้ 50ก.', price: 20.00 },
+        '885003': { name: 'นมเมจิ จืด 200มล.', price: 12.50 },
+        '885004': { name: 'ขนมปังฟาร์มเฮ้าส์', price: 22.00 },
+        '885005': { name: 'มาม่า ต้มยำกุ้ง', price: 6.00 },
+        '885006': { name: 'โค้ก ออริจินัล 325มล.', price: 15.00 },
+        '885007': { name: 'ทิชชู่ Scott 6ม้วน', price: 89.00 },
+        '885008': { name: 'ไข่ไก่ CP แพ็ค 10', price: 65.00 },
+    };
+
+    // --- DOM Elements ---
+    const barcodeInput = document.getElementById('barcodeInput');
+    const barcodeForm = document.getElementById('barcodeForm');
+    const cartTableBody = document.getElementById('cartTableBody');
+    const emptyCartMsg = document.getElementById('emptyCartMsg');
+    const cartTable = document.getElementById('cartTable');
+    
+    // --- Initialization ---
+    document.addEventListener("DOMContentLoaded", () => {
+        paymentModalInstance = new bootstrap.Modal(document.getElementById('paymentModal'));
+        updateClock();
+        setInterval(updateClock, 1000);
+        focusInput();
+
+        // Event listener สำหรับรับเงินในหน้าชำระเงิน
+        document.getElementById('cashInput').addEventListener('input', calculateChange);
+        
+        // Event listener สำหรับ Form Barcode
+        barcodeForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const code = barcodeInput.value.trim();
+            if(code) {
+                addToCart(code);
+                barcodeInput.value = '';
+            }
+        });
+    });
+
+    function updateClock() {
+        const now = new Date();
+        document.getElementById('clockDisplay').textContent = 
+            now.toLocaleDateString('th-TH') + ' ' + 
+            now.toLocaleTimeString('th-TH', {hour: '2-digit', minute:'2-digit'});
+    }
+
+    function focusInput() {
+        barcodeInput.focus();
+    }
+
+    // --- Cart Functions ---
+    function addToCart(code) {
+        let product = productDB[code];
+        
+        // สุ่มสินค้าถ้าไม่เจอ เพื่อการทดสอบ
+        if (!product) {
+            const keys = Object.keys(productDB);
+            const randomKey = keys[Math.floor(Math.random() * keys.length)];
+            product = productDB[randomKey];
+            code = randomKey; // แทนที่ด้วยรหัสที่สุ่มได้
+        }
+
+        const existingItemIndex = cart.findIndex(item => item.code === code);
+        
+        if (existingItemIndex > -1) {
+            cart[existingItemIndex].qty += 1;
+            selectedRowIndex = existingItemIndex;
+        } else {
+            cart.push({ ...product, code: code, qty: 1 });
+            selectedRowIndex = cart.length - 1;
+        }
+        
+        renderUI();
+    }
+
+    function selectRow(index) {
+        selectedRowIndex = index;
+        renderUI();
+        focusInput();
+    }
+
+    function adjustQty(delta) {
+        if (selectedRowIndex !== null && cart[selectedRowIndex]) {
+            if (cart[selectedRowIndex].qty + delta > 0) {
+                cart[selectedRowIndex].qty += delta;
+                renderUI();
+            }
+        }
+        focusInput();
+    }
+
+    function removeSelectedItem() {
+        if (selectedRowIndex !== null && cart[selectedRowIndex]) {
+            cart.splice(selectedRowIndex, 1);
+            selectedRowIndex = cart.length > 0 ? cart.length - 1 : null;
+            renderUI();
+        }
+        focusInput();
+    }
+
+    function clearCart() {
+        if (cart.length > 0 && confirm('ยืนยันการยกเลิกรายการทั้งหมด?')) {
+            cart = [];
+            memberId = '';
+            selectedRowIndex = null;
+            renderUI();
+        }
+        focusInput();
+    }
+
+    function toggleMember() {
+        memberId = memberId ? '' : '0812345678';
+        renderUI();
+        focusInput();
+    }
+
+    // --- Numpad Functions ---
+    function appendNum(num) {
+        barcodeInput.value += num;
+        focusInput();
+    }
+
+    function clearInput() {
+        barcodeInput.value = '';
+        focusInput();
+    }
+
+    // --- UI Render Function ---
+    function renderUI() {
+        // คำนวณยอด
+        grandTotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+        const totalItems = cart.reduce((sum, item) => sum + item.qty, 0);
+
+        // อัพเดท Totals
+        document.getElementById('grandTotalDisplay').textContent = grandTotal.toFixed(2);
+        document.getElementById('itemCountDisplay').textContent = `จำนวนชิ้น: ${totalItems}`;
+
+        // อัพเดท Qty ปุ่มตรงกลาง
+        document.getElementById('qtyDisplay').textContent = 
+            (selectedRowIndex !== null && cart[selectedRowIndex]) ? cart[selectedRowIndex].qty : '-';
+
+        // อัพเดท Member & Last Item
+        document.getElementById('memberDisplay').textContent = 
+            memberId ? `สมาชิก: ${memberId} (คุณลูกค้า)` : 'ลูกค้าทั่วไป (ไม่ได้ระบุสมาชิก)';
+        document.getElementById('lastItemDisplay').textContent = 
+            cart.length > 0 ? cart[cart.length - 1].name : '-';
+
+        // แสดง/ซ่อน ตาราง หรือ ข้อความรอสแกน
+        if (cart.length === 0) {
+            emptyCartMsg.style.display = 'flex';
+            cartTable.style.display = 'none';
+            cartTableBody.innerHTML = '';
+        } else {
+            emptyCartMsg.style.display = 'none';
+            cartTable.style.display = 'table';
+            
+            // วาดตาราง
+            let html = '';
+            cart.forEach((item, index) => {
+                const isSelected = index === selectedRowIndex;
+                const rowClass = isSelected ? 'selected-row' : '';
+                const total = (item.price * item.qty).toFixed(2);
+                
+                html += `
+                    <tr class="${rowClass}" style="cursor: pointer;" onclick="selectRow(${index})">
+                        <td class="text-center text-muted py-3">${index + 1}</td>
+                        <td class="py-3">
+                            <div class="fw-bold text-dark">${item.name}</div>
+                            <div class="small text-muted">${item.code}</div>
+                        </td>
+                        <td class="text-center py-3">${item.price.toFixed(2)}</td>
+                        <td class="text-center py-3">
+                            <span class="badge bg-secondary rounded-pill fs-6">${item.qty}</span>
+                        </td>
+                        <td class="text-end pe-4 fw-bold py-3 text-dark">${total}</td>
+                    </tr>
+                `;
+            });
+            cartTableBody.innerHTML = html;
+
+            // เลื่อน Scrollbar ไปล่างสุดอัตโนมัติเมื่อมีรายการใหม่
+            const cartArea = document.getElementById('cartArea');
+            cartArea.scrollTop = cartArea.scrollHeight;
+        }
+    }
+
+    // --- Payment Functions ---
+    function openPaymentModal() {
+        if (cart.length === 0) {
+            alert('ไม่มีรายการสินค้าในบิล');
+            return;
+        }
+        document.getElementById('modalTotalDisplay').textContent = grandTotal.toFixed(2);
+        document.getElementById('cashInput').value = '';
+        document.getElementById('modalReceivedDisplay').textContent = '0.00';
+        document.getElementById('modalChangeDisplay').textContent = '0.00';
+        document.getElementById('modalChangeDisplay').className = 'fs-1 fw-bold text-muted';
+        document.getElementById('confirmPaymentBtn').disabled = true;
+        document.getElementById('confirmPaymentBtn').className = 'btn btn-secondary w-100 py-3 fs-4 fw-bold shadow';
+        
+        paymentModalInstance.show();
+        
+        // Focus input หลังจาก Modal เปิด
+        setTimeout(() => {
+            document.getElementById('cashInput').focus();
+        }, 500);
+    }
+
+    function setCash(amount) {
+        document.getElementById('cashInput').value = amount;
+        calculateChange();
+    }
+
+    function calculateChange() {
+        const cashInputStr = document.getElementById('cashInput').value;
+        const received = parseFloat(cashInputStr) || 0;
+        const change = received - grandTotal;
+
+        document.getElementById('modalReceivedDisplay').textContent = received > 0 ? received.toFixed(2) : '0.00';
+        
+        const changeDisplay = document.getElementById('modalChangeDisplay');
+        const confirmBtn = document.getElementById('confirmPaymentBtn');
+
+        if (change >= 0) {
+            changeDisplay.textContent = change.toFixed(2);
+            changeDisplay.className = 'fs-1 fw-bold text-danger'; // สีแดงสำหรับเงินทอนให้เห็นชัด
+            confirmBtn.disabled = false;
+            confirmBtn.className = 'btn btn-success w-100 py-3 fs-4 fw-bold shadow';
+        } else {
+            changeDisplay.textContent = '0.00';
+            changeDisplay.className = 'fs-1 fw-bold text-muted';
+            confirmBtn.disabled = true;
+            confirmBtn.className = 'btn btn-secondary w-100 py-3 fs-4 fw-bold shadow';
+        }
+    }
+
+    function confirmPayment() {
+        const received = parseFloat(document.getElementById('cashInput').value) || 0;
+        const change = received - grandTotal;
+        
+        if (change >= 0) {
+            alert(`บันทึกการขายเรียบร้อย!\nยอดรวม: ${grandTotal.toFixed(2)} บาท\nรับเงิน: ${received.toFixed(2)} บาท\nเงินทอน: ${change.toFixed(2)} บาท`);
+            paymentModalInstance.hide();
+            cart = [];
+            memberId = '';
+            selectedRowIndex = null;
+            renderUI();
+            focusInput();
+        }
+    }
+
+    // --- Global Hotkeys ---
+    document.addEventListener('keydown', (e) => {
+        // Spacebar สำหรับเปิดหน้าชำระเงิน (เฉพาะตอนไม่ได้พิมพ์ในช่องค้นหาหรือช่องจ่ายเงิน)
+        if (e.code === 'Space' && document.activeElement !== barcodeInput && document.activeElement.id !== 'cashInput') {
+            e.preventDefault();
+            openPaymentModal();
+        }
+    });
+
+</script>
+</body>
+</html>
